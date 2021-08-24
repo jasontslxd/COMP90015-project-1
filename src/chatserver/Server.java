@@ -11,8 +11,15 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 public class Server {
-    private static int port = 4444;
+    public static final int DEFAULT_PORT = 4444;
+
+    @Option(name="-p", usage="Specify port number")
+    private int port;
     private boolean alive;
     private ArrayList<Integer> inUse = new ArrayList<>();
     private ArrayList<Room> rooms = new ArrayList<Room>(); // Placeholder for Room class
@@ -20,17 +27,21 @@ public class Server {
     private HashSet<ClientThread> allClients = new HashSet<>(); // Placeholder for ClientThread class
 
     public static void main(String[] args){
-        int port = Integer.parseInt(args[0]); // Note: Placeholder for CLI option parsing (e.g. args4j)
-        Server server = new Server(port);
+        Server server = new Server();
+        CmdLineParser parser = new CmdLineParser(server);
+        try {
+            parser.parseArgument(args);
+        } catch (CmdLineException e) {
+            e.printStackTrace();
+        }
         server.handle();
     }
 
     /**
      * Constructor for server
-     * @param port
      */
-    public Server(int port) {
-        this.port = port;
+    public Server() {
+        this.port = DEFAULT_PORT;
         this.rooms = null; // Note: Should have MainHall by default
         this.allClients = null;
     }
