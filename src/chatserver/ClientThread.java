@@ -11,7 +11,9 @@ public class ClientThread extends Thread{
     private Socket socket;
     private Server server; // Is this necessary?
     private Identity identity; // not sure if needed
-    private String currentRoom = "MainHall";
+    private Room currentRoom;
+    private Room fmrRoom;
+    //private String currentRoomName = "MainHall";
     private BufferedReader reader;
     private PrintWriter writer;
     private boolean connectionAlive = false;
@@ -30,6 +32,7 @@ public class ClientThread extends Thread{
         connectionAlive = true;
         // Initial NewIdentity message
         server.reply(identity.newIdentity(), this);
+        server.reply(server.roomList(), this);
         while (connectionAlive) {
             try {
                 // Alter according to how JSON objects are read in
@@ -38,24 +41,36 @@ public class ClientThread extends Thread{
                     case "identitychange":
                         identity.identityChange(server, this,""); // Placeholder for new name
                         server.getInUse().remove(identity.getIdNum()); // See if this works despite name not being in inUse array
+                        server.updateOwner(this.identity);
                         break;
                     case "join":
-                        String formerRoom = currentRoom;
-                        currentRoom = ""; // Placeholder for room name to join into
-                        getRoom(server.getRooms(), "");// Placeholder for room name to join into
-                        server.broadcastRoom(roomChange(formerRoom,currentRoom),getRoom(server.getRooms(),formerRoom), this);
-                        server.broadcastRoom(roomChange(formerRoom,currentRoom),getRoom(server.getRooms(),currentRoom), this);
+                        // Potentially have to pass in rooms rather than create object
+                        fmrRoom = server.getRoom(currentRoom.getRoomId());
+                        currentRoom = server.getRoom( "");// Placeholder for room name to join into
+                        try{
+                            fmrRoom.quit(this);
+                            server.broadcastRoom(roomChange(fmrRoom.getRoomId(),currentRoom.getRoomId()),fmrRoom, this);
+                            currentRoom.join(this);
+                            server.reply(currentRoom.roomContents(this),this);
+                            server.broadcastRoom(roomChange(fmrRoom.getRoomId(),currentRoom.getRoomId()),currentRoom, this);
+                        } catch (Exception e) { // Create new exception class?
+                            server.reply("The requested room is invalid or non existent.", this);
+                        }
                         break;
                     case "who":
+                        server.reply(currentRoom.roomContents(this), this);
                         break;
                     case "list":
+                        server.reply(server.roomList(), this);
                         break;
                     case "createroom":
+                        String roomName = "";
+                        server.createRoom(roomName, this.getIdentity().getIdentity());
                         break;
                     case "delete":
                         break;
                     case "message":
-                        server.broadcastRoom("", getRoom(server.getRooms(),currentRoom), this);
+                        server.broadcastRoom("", currentRoom, this);
                         break;
                     case "quit":
                         break;
@@ -87,6 +102,7 @@ public class ClientThread extends Thread{
         writer.flush();
     }
 
+    // Move to server?
     public String roomChange(String formerRoom, String currentRoom){
         String roomChange;
         roomChange = "";
@@ -98,7 +114,7 @@ public class ClientThread extends Thread{
         return roomChange;
     }
 
-    private Room getRoom(ArrayList<Room> rooms, String roomName){
+    private Room getRoom(ArrayList<Room> rooms, String roomName){ // Duplicated in server class, remove one
         int len=rooms.size();
         for(int i=0; i<len; i++) {
             if (rooms.get(i).getRoomId().equals(roomName)) {

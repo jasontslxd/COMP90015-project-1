@@ -28,14 +28,25 @@ public class Room {
 
     }
 
-    public String quit(ClientThread client){
+    public void quit(ClientThread client){
         clients.remove(client);
         String quitMsg = "";
-        return quitMsg;
     }
 
-    public void roomContents(ClientThread client){
-
+    public String roomContents(ClientThread client){
+        String roomContents;
+        String type = "type:roomcontents";
+        String roomid = "roomid:"+this.roomId;
+        String identitiesList ="";
+        for (Identity i:identities){
+            if (!i.equals(client)){
+                identitiesList += i.getIdentity() +",";
+            }
+        }
+        String identities = "identities:"+identitiesList;
+        String owner = "owner:"+this.owner;
+        roomContents = type + "," + roomid + "," + identities + "," + owner;
+        return roomContents;
     }
 
     public HashSet<ClientThread> getClients() {
@@ -44,5 +55,13 @@ public class Room {
 
     public String getRoomId() {
         return roomId;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public void setOwner(String owner) {
+        this.owner = owner;
     }
 }

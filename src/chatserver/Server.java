@@ -1,17 +1,22 @@
 package chatserver;
 
+import chatclient.Client;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Server {
     private static int port = 4444;
     private boolean alive;
     private ArrayList<Integer> inUse = new ArrayList<>();
     private ArrayList<Room> rooms = new ArrayList<Room>(); // Placeholder for Room class
+    private ArrayList<String> roomNames = new ArrayList<String>();
     private HashSet<ClientThread> allClients = new HashSet<>(); // Placeholder for ClientThread class
 
     public static void main(String[] args){
@@ -44,7 +49,7 @@ public class Server {
                 ClientThread client = new ClientThread(socket, this);
                 Room mainHall = new Room("MainHall", "");
                 rooms.add(mainHall);
-                rooms.get(0).join(client);
+                roomNames.add(mainHall.getRoomId());
                 client.start();
             }
         } catch (IOException e) {
@@ -99,16 +104,57 @@ public class Server {
         broadcastAll(String.format("%d has left the chat\n", client.getSocket().getPort()), client);
     }
 
-    public void roomList(){
-
+    public String roomList(){
+        String roomList = "";
+        String type = "type:roomlist";
+        String roomDict = "";
+        for (Room r: rooms){
+            String roomId = "roomid:" + r.getRoomId();
+            String count = "count:" + r.getClients().size();
+            roomDict += roomId + "," + count;
+        }
+        String rooms = "rooms:"+roomDict;
+        roomList = type + "," + roomDict;
+        return roomList;
     }
 
-    public void roomChange(){
+    public String createRoom(String roomName, String owner){
+        Pattern p = Pattern.compile("\\w{3,32}");
+        Matcher m = p.matcher(roomName);
+        boolean validName = m.matches();
+        // Check if already in use;
+        Boolean roomExists = roomNames.contains(roomName);
+        if (validName && !roomExists){
+            Room newRoom = new Room(roomName, owner);
+            rooms.add(newRoom);
+            roomNames.add(roomName);
+            return "Room "+roomName+ " created.";
+        } else {
+            return "Room "+roomName+ " is invalid or already in use.";
+        }
+    }
 
+    public void updateOwner(Identity client){
+        int len=rooms.size();
+        for(int i=0; i<len; i++) {
+            if (rooms.get(i).getOwner().equals(client.getFormer())) {
+                rooms.get(i).setOwner(client.getIdentity());
+            }
+        }
     }
 
     public ArrayList<Room> getRooms() {
         return rooms;
+    }
+
+    public Room getRoom(String roomName){ //Move to server class?
+        int len=rooms.size();
+        for(int i=0; i<len; i++) {
+            if (rooms.get(i).getRoomId().equals(roomName)) {
+                return rooms.get(i);
+            }
+        }
+        return null;
     }
 
     public int getSmallestInt(){
