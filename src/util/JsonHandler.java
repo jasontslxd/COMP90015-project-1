@@ -44,27 +44,6 @@ public class JsonHandler {
         return jsonToString(newMessage);
     }
 
-    public static HashMap<String, Object> deconstructJsonMessage(JsonObject jsonData) {
-        HashMap<String, Object> newMessage = new HashMap<>();
-        for (String key : jsonData.keySet()) {
-            try {
-                JsonElement value = jsonData.get(key);
-
-                // protocol only allows string or array values
-                if (value.isJsonPrimitive()) {
-                    newMessage.put(key, jsonData.get(key).getAsString());
-                }
-                else {
-                    newMessage.put(key, value.getAsJsonArray());
-                }
-            }
-            catch (ClassCastException | IllegalStateException e) {
-                // possibly log error?
-            }
-        }
-        return newMessage;
-    }
-
     public static void main(String[] args) throws KeyNotFoundException{
         String fromJson = "{\"type\":\"newidentity\"}";
         JsonObject object = JsonHandler.stringToJson(fromJson);
@@ -88,9 +67,9 @@ public class JsonHandler {
         arr.add(three);
         toJson.put("identities", arr);
         String out = JsonHandler.constructJsonMessage(toJson);
+        JsonObject obj = JsonHandler.stringToJson(out);
         System.out.println(out);
-        System.out.println(JsonHandler.getMessageValue(out, "identities"));
-        System.out.println(JsonHandler.getMessageValue(out, "roomid"));
-        System.out.println(JsonHandler.deconstructJsonMessage(JsonHandler.stringToJson(out)));
+        System.out.println(JsonHandler.getMessageValue(out, "identities").getAsJsonArray());
+        System.out.println(JsonHandler.getMessageValue(out, "roomid").getAsJsonArray());
     }
 }
