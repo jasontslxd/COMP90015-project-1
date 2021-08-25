@@ -1,13 +1,13 @@
 package chatserver;
 
 import chatclient.Client;
+import util.JsonHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,24 +61,23 @@ public class Server {
     /**
      * Broadcast message out to clients
      * Note: To incorporate JSON marshalling
-     * @param json
      * @param ignore
      */
-    public void broadcastAll(String json, ClientThread ignore) {
+    public void broadcastAll(Map<String, Object> map, ClientThread ignore) {
         synchronized (allClients) { // Note: Check if synchronisation is necessary
             for (ClientThread c: allClients) {
                 if (ignore == null || !ignore.equals(c)) {
-                    c.sendMessage(json);
+                    c.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
                 }
             }
         }
     }
 
-    public void broadcastRoom(String json, Room room, ClientThread ignore) {
+    public void broadcastRoom(Map<String, Object> map, Room room, ClientThread ignore) {
         synchronized (room.getClients()) { // Note: Check if synchronisation is necessary
             for (ClientThread c: room.getClients()) {
                 if (ignore == null || !ignore.equals(c)) {
-                    c.sendMessage(json);
+                    c.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
                 }
             }
         }
@@ -87,38 +86,37 @@ public class Server {
     /**
      * Server reply to single client
      * Note: To incorporate JSON marshalling
-     * @param message
      * @param c
      */
-    public void reply(String message, ClientThread c) {
+    public void reply(Map<String, Object> map, ClientThread c) {
         synchronized (allClients) { // Note: Check if synchronisation is necessary
-                    c.sendMessage(message);
+                    c.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
         }
     }
 
-    public void leave(ClientThread client) {
+    public void quit(ClientThread client) {
         synchronized (allClients) {
             allClients.remove(client);
             inUse.remove(client.getIdentity().getIdNum());
         }
-        broadcastAll(String.format("%d has left the chat\n", client.getSocket().getPort()), client);
     }
 
-    public String roomList(){
-        String roomList = "";
-        String type = "type:roomlist";
-        String roomDict = "";
+    public Map<String, Object> roomList(){
+        HashMap<String, Object> roomList = new HashMap<>();
+        roomList.put("type","roomlist");
+        ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
+        HashMap<String, Object> roomTemp = new HashMap<>();
         for (Room r: rooms){
-            String roomId = "roomid:" + r.getRoomId();
-            String count = "count:" + r.getClients().size();
-            roomDict += roomId + "," + count;
+            roomTemp.put("roomid:" ,r.getRoomId());
+            roomTemp.put("count:",r.getClients().size());
+            roomDict.add(roomTemp);
+            roomTemp.clear();
         }
-        String rooms = "rooms:"+roomDict;
-        roomList = type + "," + roomDict;
+        roomList.put("rooms", roomDict);
         return roomList;
     }
 
-    public String createRoom(String roomName, String owner){
+    public void createRoom(String roomName, String owner){
         Pattern p = Pattern.compile("\\w{3,32}");
         Matcher m = p.matcher(roomName);
         boolean validName = m.matches();
@@ -128,17 +126,30 @@ public class Server {
             Room newRoom = new Room(roomName, owner);
             rooms.add(newRoom);
             roomNames.add(roomName);
-            return "Room "+roomName+ " created.";
-        } else {
-            return "Room "+roomName+ " is invalid or already in use.";
         }
     }
 
-    public void updateOwner(Identity client){
+    public void deleteRoom(String roomName){
+        for (ClientThread c:getRoom(roomName).getClients()){
+            getRoom("MainHall").join(c);
+        }
+        rooms.remove(getRoom(roomName));
+    }
+
+    public void autoDeleteEmpty(){
+        int len=rooms.size();
+        for(int i=0; i<len; i++) {
+            if (rooms.get(i).getClients().isEmpty()) {
+                deleteRoom(rooms.get(i).getRoomId());
+            }
+        }
+    }
+
+    public void updateOwner(Identity client, String newName){
         int len=rooms.size();
         for(int i=0; i<len; i++) {
             if (rooms.get(i).getOwner().equals(client.getFormer())) {
-                rooms.get(i).setOwner(client.getIdentity());
+                rooms.get(i).setOwner(newName);
             }
         }
     }
@@ -172,6 +183,13 @@ public class Server {
             smallest = inUse.size();
         }
         return smallest;
+    }
+
+    private String utfEncoder(String input) {
+        byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+        String output = new String(bytes, StandardCharsets.UTF_8);
+
+        return output;
     }
 
     public ArrayList<Integer> getInUse() {
