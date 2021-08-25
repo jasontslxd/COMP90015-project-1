@@ -1,6 +1,8 @@
 package chatserver;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,12 +39,11 @@ public class Identity {
         }
     }
 
-    public String newIdentity(){
-        String newIdentity;
-        String type = "type:newidentity";
-        String former = "former:"+getFormer();
-        String identity = "identity:"+getIdentity();
-        newIdentity = type + "," + former + "," + identity;
+    public Map<String, Object> newIdentity(){
+        HashMap<String, Object> newIdentity = new HashMap<>();
+        newIdentity.put("type","newidentity");
+        newIdentity.put("former",getFormer());
+        newIdentity.put("identity",getIdentity());
         return newIdentity;
     }
 
