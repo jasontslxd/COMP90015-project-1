@@ -1,6 +1,9 @@
 package chatserver;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class Room {
     private HashSet<ClientThread> clients = new HashSet<>(); // Either lists of clients or identities idk
@@ -33,19 +36,17 @@ public class Room {
         String quitMsg = "";
     }
 
-    public String roomContents(ClientThread client){
-        String roomContents;
-        String type = "type:roomcontents";
-        String roomid = "roomid:"+this.roomId;
-        String identitiesList ="";
+    public Map<String, Object> roomContents(ClientThread client){
+        HashMap<String, Object> roomContents = new HashMap<>();
+        roomContents.put("type","roomcontents");
+        roomContents.put("roomid",this.roomId);
+        ArrayList<String> identitiesList = null;
         for (Identity i:identities){
             if (!i.equals(client)){
-                identitiesList += i.getIdentity() +",";
+                identitiesList.add(i.getIdentity());
             }
         }
-        String identities = "identities:"+identitiesList;
-        String owner = "owner:"+this.owner;
-        roomContents = type + "," + roomid + "," + identities + "," + owner;
+        roomContents.put("identities",identitiesList);
         return roomContents;
     }
 
