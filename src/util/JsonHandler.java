@@ -5,34 +5,30 @@ import com.google.gson.*;
 import java.util.*;
 
 public class JsonHandler {
-    private static Gson gson = null;
+    private static final Gson gson = new Gson();
 
-    public JsonHandler() {
-        if (gson == null) {
-            gson = new Gson();
-        }
-    }
+    private JsonHandler() { }
 
-    public JsonObject stringToJson(String jsonString) {
+    public static JsonObject stringToJson(String jsonString) {
         return JsonParser.parseString(jsonString).getAsJsonObject();
     }
 
-    public String jsonToString(JsonObject jsonObject) {
+    public static String jsonToString(JsonObject jsonObject) {
         return jsonObject.toString();
     }
 
-    public JsonElement getMessageValue(JsonObject jsonObject, String key) throws KeyNotFoundException {
+    public static JsonElement getMessageValue(JsonObject jsonObject, String key) throws KeyNotFoundException {
         if (!jsonObject.has(key)) {
             throw new KeyNotFoundException("JSON object did not have the key: ".concat(key));
         }
         return jsonObject.get(key);
     }
 
-    public JsonElement getMessageValue(String objectString, String key) throws KeyNotFoundException {
+    public static JsonElement getMessageValue(String objectString, String key) throws KeyNotFoundException {
         return getMessageValue(stringToJson(objectString), key);
     }
 
-    public String constructJsonMessage(Map<String, Object> map) {
+    public static String constructJsonMessage(Map<String, Object> map) {
         JsonObject newMessage = new JsonObject();
         for (String key : map.keySet()) {
             Object value = map.get(key);
@@ -48,32 +44,10 @@ public class JsonHandler {
         return jsonToString(newMessage);
     }
 
-    public HashMap<String, Object> deconstructJsonMessage(JsonObject jsonData) {
-        HashMap<String, Object> newMessage = new HashMap<>();
-        for (String key : jsonData.keySet()) {
-            try {
-                JsonElement value = jsonData.get(key);
-
-                // protocol only allows string or array values
-                if (value.isJsonPrimitive()) {
-                    newMessage.put(key, jsonData.get(key).getAsString());
-                }
-                else {
-                    newMessage.put(key, value.getAsJsonArray());
-                }
-            }
-            catch (ClassCastException | IllegalStateException e) {
-                // possibly log error?
-            }
-        }
-        return newMessage;
-    }
-
     public static void main(String[] args) throws KeyNotFoundException{
-        JsonHandler handler = new JsonHandler();
         String fromJson = "{\"type\":\"newidentity\"}";
-        JsonObject object = handler.stringToJson(fromJson);
-        System.out.println(handler.getMessageValue(object,"type"));
+        JsonObject object = JsonHandler.stringToJson(fromJson);
+        System.out.println(JsonHandler.getMessageValue(object,"type"));
 
         HashMap<String, Object> toJson = new HashMap<>();
         toJson.put("type", "roomlists");
@@ -92,10 +66,10 @@ public class JsonHandler {
         arr.add(two);
         arr.add(three);
         toJson.put("identities", arr);
-        String out = handler.constructJsonMessage(toJson);
+        String out = JsonHandler.constructJsonMessage(toJson);
+        JsonObject obj = JsonHandler.stringToJson(out);
         System.out.println(out);
-        System.out.println(handler.getMessageValue(out, "identities"));
-        System.out.println(handler.getMessageValue(out, "roomid"));
-        System.out.println(handler.deconstructJsonMessage(handler.stringToJson(out)));
+        System.out.println(JsonHandler.getMessageValue(out, "identities").getAsJsonArray());
+        System.out.println(JsonHandler.getMessageValue(out, "roomid").getAsJsonArray());
     }
 }
