@@ -19,7 +19,8 @@ public class Server {
     public static final int DEFAULT_PORT = 4444;
 
     @Option(name="-p", usage="Specify port number")
-    private int port;
+    private int port = DEFAULT_PORT;
+
     private boolean alive;
     private ArrayList<Integer> inUse = new ArrayList<>();
     private ArrayList<Room> rooms = new ArrayList<Room>(); // Placeholder for Room class
@@ -41,8 +42,7 @@ public class Server {
      * Constructor for server
      */
     public Server() {
-        this.port = DEFAULT_PORT;
-        this.rooms = null; // Note: Should have MainHall by default
+//        this.rooms = null; // Note: Should have MainHall by default
         this.allClients = null;
     }
 
@@ -62,6 +62,7 @@ public class Server {
                 rooms.add(mainHall);
                 roomNames.add(mainHall.getRoomId());
                 client.start();
+                System.out.printf("Accepted new connection from %s:%d\n", socket.getLocalAddress(), socket.getPort());
             }
         } catch (IOException e) {
             alive = false;
