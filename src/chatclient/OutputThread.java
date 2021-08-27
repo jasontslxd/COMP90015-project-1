@@ -36,6 +36,7 @@ public class OutputThread extends Thread {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
                     System.out.println("Received null input");
+                    alive = false;
                 }
                 else {
                     String message = convertToProtocol(inputLine);
