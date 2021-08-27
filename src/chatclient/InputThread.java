@@ -32,6 +32,7 @@ public class InputThread extends Thread {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
                     System.out.println("Received null input");
+                    alive = false;
                 }
                 else {
                     System.out.println(inputLine);
