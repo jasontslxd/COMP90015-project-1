@@ -4,6 +4,7 @@ import util.JsonHandler;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,12 +56,15 @@ public class OutputThread extends Thread {
     }
 
     private String convertToProtocol(String input) throws InvalidCommandException {
+        String rawOutput;
         if (input.charAt(0) == '#') {
-            return buildCommandJsonString(input);
+            rawOutput = buildCommandJsonString(input);
         }
         else {
-            return buildMessageJsonString(input);
+            rawOutput = buildMessageJsonString(input);
         }
+        byte[] bytes = rawOutput.getBytes();
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     private String buildMessageJsonString(String input) {
