@@ -31,7 +31,7 @@ public class InputThread extends Thread {
             try {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
-                    System.out.println("Received null input");
+                    System.out.println("Received null input from server, quitting");
                     alive = false;
                 }
                 else {
@@ -41,6 +41,16 @@ public class InputThread extends Thread {
                 System.out.println("Error reading input: ".concat(e.getMessage()));
                 alive = false;
             }
+        }
+    }
+
+    public void close() {
+        try {
+            reader.close();
+            socket.close();
+        }
+        catch (IOException e){
+            System.out.println("Error closing connection: ".concat(e.getMessage()));
         }
     }
 }

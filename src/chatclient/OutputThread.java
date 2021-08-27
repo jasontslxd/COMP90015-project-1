@@ -35,7 +35,7 @@ public class OutputThread extends Thread {
             try {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
-                    System.out.println("Received null input");
+                    System.out.println("Received null input from client, quitting");
                     alive = false;
                 }
                 else {
@@ -51,6 +51,7 @@ public class OutputThread extends Thread {
                 System.out.println("Invalid command: ".concat(e.getMessage()));
             }
         }
+        close();
     }
 
     private String convertToProtocol(String input) throws InvalidCommandException {
@@ -103,5 +104,15 @@ public class OutputThread extends Thread {
             }
         }
         return JsonHandler.constructJsonMessage(commandProtocol);
+    }
+
+    public void close(){
+        try {
+            reader.close();
+            writer.close();
+            socket.close();
+        } catch (IOException e) {
+            System.out.println("Error closing connection: ".concat(e.getMessage()));
+        }
     }
 }
