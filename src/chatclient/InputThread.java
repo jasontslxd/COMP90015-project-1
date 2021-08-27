@@ -42,6 +42,7 @@ public class InputThread extends Thread {
                 alive = false;
             }
         }
+        close();
     }
 
     public void close() {
