@@ -34,7 +34,8 @@ public class Client {
         try {
             parser.parseArgument(Arrays.copyOfRange(args, 1, args.length));
         } catch (CmdLineException e) {
-            e.printStackTrace();
+            System.out.println("Command line input is not well formed: ".concat(e.getMessage()));
+            System.exit(-1);
         }
         client.handle();
     }
