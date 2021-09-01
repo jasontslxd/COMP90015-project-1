@@ -10,13 +10,15 @@ import java.util.Map;
 
 public class OutputThread extends Thread {
     private Socket socket;
+    private Client client;
     private PrintWriter writer;
     private BufferedReader reader;
     private boolean alive;
 
-    public OutputThread(Socket socket) {
+    public OutputThread(Socket socket, Client client) {
         try {
             this.socket = socket;
+            this.client = client;
             writer = new PrintWriter(socket.getOutputStream());
             reader = new BufferedReader(new InputStreamReader(System.in));
             alive = false;
@@ -28,6 +30,8 @@ public class OutputThread extends Thread {
 
     /**
      * Reads messages from client and sends to server
+     * If the server sends a message and interrupts an unfinished input in console, the input will
+     * be wiped and start again from the new prompt
      */
     @Override
     public void run() {
@@ -39,10 +43,15 @@ public class OutputThread extends Thread {
                     System.out.println("Received null input from client, quitting");
                     alive = false;
                 }
+                else if (inputLine.equals("") && client.isTimeToPrompt()) {
+                    // Dont send anything to the server, prompt again
+                    System.out.printf("[%s] %s> ", client.getRoomid(), client.getUsername());
+                }
                 else {
+                    client.setSentMessage(true);
                     String message = convertToProtocol(inputLine);
                     writer.print(message);
-                    System.out.println(message);
+                    writer.flush();
                 }
             } catch (IOException e) {
                 System.out.println("Error reading input, quitting: ".concat(e.getMessage()));
@@ -91,6 +100,7 @@ public class OutputThread extends Thread {
                     case ("join"):
                     case ("who"):
                     case ("createroom"):
+                        client.setSentCreateRoom(true);
                     case ("delete"):
                         commandProtocol.put("type", type);
                         commandProtocol.put("roomid", contents[1]);

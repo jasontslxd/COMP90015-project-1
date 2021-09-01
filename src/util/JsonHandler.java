@@ -14,7 +14,7 @@ public class JsonHandler {
     }
 
     public static String jsonToString(JsonObject jsonObject) {
-        return jsonObject.toString();
+        return jsonObject.toString() + "\n";
     }
 
     public static JsonElement getMessageValue(JsonObject jsonObject, String key) throws KeyNotFoundException {
@@ -42,34 +42,5 @@ public class JsonHandler {
             }
         }
         return jsonToString(newMessage);
-    }
-
-    public static void main(String[] args) throws KeyNotFoundException{
-        String fromJson = "{\"type\":\"newidentity\"}";
-        JsonObject object = JsonHandler.stringToJson(fromJson);
-        System.out.println(JsonHandler.getMessageValue(object,"type"));
-
-        HashMap<String, Object> toJson = new HashMap<>();
-        toJson.put("type", "roomlists");
-        toJson.put("roomid", new String[]{"aaron", "adel", "chao", "guest1"});
-        ArrayList<HashMap<String, Object>> arr= new ArrayList<>();
-        HashMap<String, Object> one = new HashMap<>();
-        one.put("roomid", "MainHall");
-        one.put("count", 5);
-        HashMap<String, Object> two = new HashMap<>();
-        two.put("roomid", "comp90015");
-        two.put("count", 7);
-        HashMap<String, Object> three = new HashMap<>();
-        three.put("roomid", "FridayNight");
-        three.put("count", 4);
-        arr.add(one);
-        arr.add(two);
-        arr.add(three);
-        toJson.put("identities", arr);
-        String out = JsonHandler.constructJsonMessage(toJson);
-        JsonObject obj = JsonHandler.stringToJson(out);
-        System.out.println(out);
-        System.out.println(JsonHandler.getMessageValue(out, "identities").getAsJsonArray());
-        System.out.println(JsonHandler.getMessageValue(out, "roomid").getAsJsonArray());
     }
 }
