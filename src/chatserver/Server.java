@@ -1,6 +1,5 @@
 package chatserver;
 
-import chatclient.Client;
 import util.*;
 
 import java.io.IOException;
@@ -8,12 +7,15 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import util.KeyNotFoundException;
 
 public class Server {
     public static final int DEFAULT_PORT = 4444;
@@ -23,6 +25,9 @@ public class Server {
 
     private boolean alive;
     private ArrayList<Integer> inUse = new ArrayList<>();
+    private final HashMap<String, Room> roomMap = new HashMap<>();
+    private ExecutorService pool = Executors.newFixedThreadPool(8);
+
     private ArrayList<Room> rooms = new ArrayList<Room>(); // Placeholder for Room class
     private ArrayList<String> roomNames = new ArrayList<String>();
     private HashSet<ClientThread> allClients = new HashSet<>(); // Placeholder for ClientThread class
@@ -42,8 +47,8 @@ public class Server {
      * Constructor for server
      */
     public Server() {
-        this.rooms = null; // Note: Should have MainHall by default
-        this.allClients = null;
+        Room mainHall = new Room("MainHall", "");
+        roomMap.put(mainHall.getRoomId(), mainHall);
     }
 
     /**
@@ -58,10 +63,8 @@ public class Server {
             while (true) {
                 Socket socket = serverSocket.accept();
                 ClientThread client = new ClientThread(socket, this);
-                Room mainHall = new Room("MainHall", "");
-                rooms.add(mainHall);
-                roomNames.add(mainHall.getRoomId());
-                client.start();
+//                client.start();
+                pool.execute(client);
                 System.out.printf("Accepted new connection from %s:%d\n", socket.getLocalAddress(), socket.getPort());
             }
         } catch (IOException e) {
@@ -78,19 +81,17 @@ public class Server {
     public void broadcastAll(Map<String, Object> map, ClientThread ignore) {
         synchronized (allClients) { // Note: Check if synchronisation is necessary
             for (ClientThread c: allClients) {
-                if (ignore == null || !ignore.equals(c)) {
-                    c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
-                }
+                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));}
             }
         }
     }
 
-    public void broadcastRoom(Map<String, Object> map, Room room, ClientThread ignore) {
+    public void broadcastRoom(Map<String, Object> map, Room room) {
         synchronized (room.getClients()) { // Note: Check if synchronisation is necessary
+            for (ClientThread client: room.getClients()) {
+                client.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
             for (ClientThread c: room.getClients()) {
-                if (ignore == null || !ignore.equals(c)) {
-                    c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
-                }
+                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
             }
         }
     }
@@ -102,14 +103,40 @@ public class Server {
      */
     public void reply(Map<String, Object> map, ClientThread c) {
         synchronized (allClients) { // Note: Check if synchronisation is necessary
-                    c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
+            c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
         }
     }
 
     public void quit(ClientThread client) {
         synchronized (allClients) {
             allClients.remove(client);
+            // Exception in thread "pool-1-thread-2" java.lang.IndexOutOfBoundsException: Index 2 out of bounds for length 2
             inUse.remove(client.getIdentity().getIdNum());
+        }
+    }
+
+    public void joinRoom(ClientThread client, String roomId) throws KeyNotFoundException {
+        if (roomMap.containsKey(roomId)) {
+            Room newRoom = roomMap.get(roomId);
+            Room oldRoom = client.getCurrentRoom();
+
+            // Notify other clients in room
+            HashMap<String, Object> roomChange = new HashMap<>();
+            roomChange.put("type", "roomchange");
+            roomChange.put("identity", client.getIdentity().getIdentity());
+            roomChange.put("former", oldRoom == null ? "" : oldRoom.getRoomId());
+            roomChange.put("roomid", roomId);
+
+            client.setCurrentRoom(newRoom);
+            if (oldRoom != null) {
+                oldRoom.quit(client);
+                broadcastRoom(roomChange, oldRoom);
+            }
+            newRoom.join(client);
+            broadcastRoom(roomChange, newRoom);
+        }
+        else {
+            throw new KeyNotFoundException("Room does not exist: ".concat(roomId));
         }
     }
 
@@ -117,12 +144,11 @@ public class Server {
         HashMap<String, Object> roomList = new HashMap<>();
         roomList.put("type","roomlist");
         ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
-        HashMap<String, Object> roomTemp = new HashMap<>();
-        for (Room r: rooms){
-            roomTemp.put("roomid:" ,r.getRoomId());
-            roomTemp.put("count:",r.getClients().size());
-            roomDict.add(roomTemp);
-            roomTemp.clear();
+        for (Room r: roomMap.values()){
+            HashMap<String, Object> roomData = new HashMap<>();
+            roomData.put("roomid" ,r.getRoomId());
+            roomData.put("count",r.getClients().size());
+            roomDict.add(roomData);
         }
         roomList.put("rooms", roomDict);
         return roomList;
@@ -133,11 +159,10 @@ public class Server {
         Matcher m = p.matcher(roomName);
         boolean validName = m.matches();
         // Check if already in use;
-        Boolean roomExists = roomNames.contains(roomName);
+        boolean roomExists = roomNames.contains(roomName);
         if (validName && !roomExists){
             Room newRoom = new Room(roomName, owner);
-            rooms.add(newRoom);
-            roomNames.add(roomName);
+            roomMap.put(roomName, newRoom);
         }
     }
 

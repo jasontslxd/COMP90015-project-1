@@ -19,6 +19,11 @@ public class Client {
     private Socket socket;
     private InputThread inputThread;
     private OutputThread outputThread;
+    private String username;
+    private String roomid = "MainHall"; // Assuming main hall will always be the room when client first joins
+    private boolean sentMessage = false;
+    private boolean timeToPrompt = false;
+    private boolean sentCreateRoom = false;
 
     public Client(String hostname) {
         this.hostname = hostname;
@@ -43,15 +48,58 @@ public class Client {
     public void handle() {
         try {
             socket = new Socket(hostname, port);
-            inputThread = new InputThread(socket);
-            outputThread = new OutputThread(socket);
+            inputThread = new InputThread(socket, this);
+            outputThread = new OutputThread(socket, this);
             inputThread.start();
             outputThread.start();
-            System.out.printf("Connected to %s at port %d\n", hostname, port);
         } catch (UnknownHostException e) {
             System.out.println("Server not found: ".concat(e.getMessage()));
         } catch (IOException e) {
             System.out.println("IO error: ".concat(e.getMessage()));
         }
+    }
+
+    public String getHostname(){
+        return hostname;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setRoomid(String roomid) {
+        this.roomid = roomid;
+    }
+
+    public String getRoomid() {
+        return roomid;
+    }
+
+    public boolean hasSentMessage() {
+        return sentMessage;
+    }
+
+    public void setSentMessage(boolean sentMessage) {
+        this.sentMessage = sentMessage;
+    }
+
+    public boolean isTimeToPrompt() {
+        return timeToPrompt;
+    }
+
+    public void setTimeToPrompt(boolean timeToPrompt) {
+        this.timeToPrompt = timeToPrompt;
+    }
+
+    public boolean getSentCreateRoom() {
+        return sentCreateRoom;
+    }
+
+    public void setSentCreateRoom(boolean sentCreateRoom) {
+        this.sentCreateRoom = sentCreateRoom;
     }
 }

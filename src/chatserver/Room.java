@@ -6,12 +6,12 @@ import java.util.HashSet;
 import java.util.Map;
 
 public class Room {
-    private HashSet<ClientThread> clients = new HashSet<>(); // Either lists of clients or identities idk
+    private ArrayList<ClientThread> clients = new ArrayList<>(); // Either lists of clients or identities idk
     private HashSet<Identity> identities = new HashSet<Identity>();
     private String roomId;
     private String owner;
 
-    public Room(String roomid, String owner ){
+    public Room(String roomid, String owner){
         this.roomId = roomid;
         this.owner = owner;
     }
@@ -28,7 +28,6 @@ public class Room {
     public void join(ClientThread client){
         clients.add(client);
         String joinMsg = "";
-
     }
 
     public void quit(ClientThread client){
@@ -36,21 +35,20 @@ public class Room {
         String quitMsg = "";
     }
 
-    public Map<String, Object> roomContents(ClientThread client){
+    public Map<String, Object> roomContents(){
         HashMap<String, Object> roomContents = new HashMap<>();
         roomContents.put("type","roomcontents");
-        roomContents.put("roomid",this.roomId);
-        ArrayList<String> identitiesList = null;
-        for (Identity i:identities){
-            if (!i.equals(client)){
-                identitiesList.add(i.getIdentity());
-            }
+        roomContents.put("roomid",roomId);
+        roomContents.put("owner", owner);
+        ArrayList<String> identitiesList = new ArrayList<>();
+        for (ClientThread client : clients){
+            identitiesList.add(client.getIdentity().getIdentity());
         }
         roomContents.put("identities",identitiesList);
         return roomContents;
     }
 
-    public HashSet<ClientThread> getClients() {
+    public ArrayList<ClientThread> getClients() {
         return clients;
     }
 

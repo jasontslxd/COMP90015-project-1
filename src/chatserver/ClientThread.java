@@ -34,26 +34,23 @@ public class ClientThread extends Thread{
         // Replace below with JSON replacements
         this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new PrintWriter(socket.getOutputStream());
+        this.currentRoom = null;
     }
 
     @Override
     public void run() {
         connectionAlive = true;
-        // Initial NewIdentity message
-        server.reply(identity.newIdentity(), this);
-        server.reply(server.roomList(), this);
+        initialSetup();
         while (connectionAlive) {
             try {
                 // Alter according to how JSON objects are read in
                 String in  = reader.readLine();
+                System.out.println(in);
                 JsonObject command = JsonHandler.stringToJson(in);
                 String cmdType = command.get("type").getAsString();
                 switch(cmdType){
                     case "identitychange":
-                        String newName = command.get("identity").getAsString();
-                        identity.identityChange(server, this,newName);
-                        server.getInUse().remove(identity.getIdNum()); // See if this works despite name not being in inUse array
-                        server.updateOwner(this.identity, newName);
+                        handleIdentityChange(command);
                         break;
                     case "join":
                         // Potentially have to pass in rooms rather than create object
@@ -64,17 +61,17 @@ public class ClientThread extends Thread{
                         currentRoomName = currentRoom.getRoomId();
                         try{
                             fmrRoom.quit(this);
-                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),fmrRoom, null);
+                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),fmrRoom);
                             currentRoom.join(this);
-                            server.reply(currentRoom.roomContents(this),this);
-                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),currentRoom, null);
+                            server.reply(currentRoom.roomContents(),this);
+                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),currentRoom);
                             server.autoDeleteEmpty();
                         } catch (Exception e) { // Create new exception class?
                             server.reply(roomChange(fmrRoomName,currentRoomName), this);
                         }
                         break;
                     case "who":
-                        server.reply(currentRoom.roomContents(this), this);
+                        server.reply(currentRoom.roomContents(), this);
                         break;
                     case "list":
                         server.reply(server.roomList(), this);
@@ -90,7 +87,7 @@ public class ClientThread extends Thread{
                         server.deleteRoom(deletedRoom);
                         break;
                     case "message":
-                        server.broadcastRoom(relayedMessage(command), currentRoom, this);
+                        handleMessage(command);
                         break;
                     case "quit":
                         close();
@@ -106,7 +103,7 @@ public class ClientThread extends Thread{
     public void close(){
         try {
             server.quit(this); // May not be necessary
-            server.broadcastRoom(roomChange(fmrRoomName,""),currentRoom, null);
+            server.broadcastRoom(roomChange(fmrRoomName,""),currentRoom);
             server.updateOwner(this.identity, "");
             socket.close();
             reader.close();
@@ -123,6 +120,20 @@ public class ClientThread extends Thread{
     public void sendMessage(String message) {
         writer.print(message);
         writer.flush();
+    }
+
+    public void joinRoom(String roomId) throws KeyNotFoundException {
+        this.server.joinRoom(this, roomId);
+    }
+
+    private void initialSetup() {
+        server.reply(identity.newIdentity(), this);
+        server.reply(server.roomList(), this);
+        try {
+            joinRoom("MainHall");
+        } catch (KeyNotFoundException e) {
+            System.out.println("Server error, MainHall not found");
+        }
     }
 
     public Map<String, Object> relayedMessage(JsonObject command){
@@ -149,5 +160,25 @@ public class ClientThread extends Thread{
 
     public Identity getIdentity() {
         return identity;
+    }
+
+    private void handleMessage(JsonObject jsonMessage) {
+        server.broadcastRoom(relayedMessage(jsonMessage), currentRoom);
+    }
+
+    private void handleIdentityChange(JsonObject jsonMessage) {
+        String newName = jsonMessage.get("identity").getAsString();
+        identity.identityChange(server, this,newName);
+        server.getInUse().remove((Integer) identity.getIdNum()); // See if this works despite name not being in inUse array
+        System.out.println(server.getInUse());
+        server.updateOwner(this.identity, newName);
+    }
+
+    public Room getCurrentRoom() {
+        return currentRoom;
+    }
+
+    public void setCurrentRoom(Room currentRoom) {
+        this.currentRoom = currentRoom;
     }
 }
