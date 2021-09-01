@@ -1,6 +1,6 @@
 package chatserver;
 
-import util.JsonHandler;
+import util.*;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -79,11 +79,9 @@ public class Server {
      * @param ignore
      */
     public void broadcastAll(Map<String, Object> map, ClientThread ignore) {
-        synchronized (roomMap) { // Note: Check if synchronisation is necessary
-            for (Room room : roomMap.values()) {
-                for (ClientThread client : room.getClients()) {
-                    client.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
-                }
+        synchronized (allClients) { // Note: Check if synchronisation is necessary
+            for (ClientThread c: allClients) {
+                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));}
             }
         }
     }
@@ -92,6 +90,8 @@ public class Server {
         synchronized (room.getClients()) { // Note: Check if synchronisation is necessary
             for (ClientThread client: room.getClients()) {
                 client.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
+            for (ClientThread c: room.getClients()) {
+                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
             }
         }
     }
@@ -103,7 +103,7 @@ public class Server {
      */
     public void reply(Map<String, Object> map, ClientThread c) {
         synchronized (allClients) { // Note: Check if synchronisation is necessary
-            c.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
+            c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
         }
     }
 
@@ -220,13 +220,6 @@ public class Server {
             smallest = inUse.size();
         }
         return smallest;
-    }
-
-    private String utfEncoder(String input) {
-        byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
-        String output = new String(bytes, StandardCharsets.UTF_8);
-
-        return output;
     }
 
     public ArrayList<Integer> getInUse() {
