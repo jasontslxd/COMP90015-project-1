@@ -23,7 +23,7 @@ public class Client {
     private String roomid = "MainHall"; // Assuming main hall will always be the room when client first joins
     private boolean sentMessage = false;
     private boolean timeToPrompt = false;
-    private boolean sentCreateRoom = false;
+    private String newRoomName;
 
     public Client(String hostname) {
         this.hostname = hostname;
@@ -95,11 +95,11 @@ public class Client {
         this.timeToPrompt = timeToPrompt;
     }
 
-    public boolean getSentCreateRoom() {
-        return sentCreateRoom;
+    public String getNewRoomName() {
+        return newRoomName;
     }
 
-    public void setSentCreateRoom(boolean sentCreateRoom) {
-        this.sentCreateRoom = sentCreateRoom;
+    public void setNewRoomName(String newRoomName) {
+        this.newRoomName = newRoomName;
     }
 }

@@ -100,7 +100,7 @@ public class OutputThread extends Thread {
                     case ("join"):
                     case ("who"):
                     case ("createroom"):
-                        client.setSentCreateRoom(true);
+                        client.setNewRoomName(contents[1]);
                     case ("delete"):
                         commandProtocol.put("type", type);
                         commandProtocol.put("roomid", contents[1]);

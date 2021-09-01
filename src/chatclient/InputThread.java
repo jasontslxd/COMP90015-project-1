@@ -120,10 +120,20 @@ public class InputThread extends Thread {
 
     private void handleRoomList(JsonObject jsonMessage) {
         JsonArray roomData = jsonMessage.get("rooms").getAsJsonArray();
-        if (client.getSentCreateRoom()) {
+        if (client.getNewRoomName() != null) {
+            boolean foundRoom = false;
             for (JsonElement roomInstance : roomData) {
                 String roomid = roomInstance.getAsJsonObject().get("roomid").getAsString();
+                if (roomid.equals(client.getNewRoomName())) {
+                    foundRoom = true;
+                    System.out.printf("Room %s created.\n", roomid);
+                    break;
+                }
             }
+            if (!foundRoom) {
+                System.out.printf("Room %s is invalid or already in use.\n", client.getNewRoomName());
+            }
+            client.setNewRoomName(null);
         }
         else {
             for (JsonElement roomInstance : roomData) {
