@@ -8,6 +8,8 @@ import java.net.Socket;
 
 import com.google.gson.JsonObject;
 import util.*;
+
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +31,8 @@ public class ClientThread extends Thread{
         this.socket = socket;
         this.server = server;
         this.identity = new Identity(server.getSmallestInt());
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        // Replace below with JSON replacements
+        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new PrintWriter(socket.getOutputStream());
         this.currentRoom = null;
     }
