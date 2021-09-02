@@ -7,11 +7,10 @@ import java.util.Map;
 
 public class Room {
     private ArrayList<ClientThread> clients = new ArrayList<>(); // Either lists of clients or identities idk
-    private HashSet<Identity> identities = new HashSet<Identity>();
     private String roomId;
-    private String owner;
+    private ClientThread owner;
 
-    public Room(String roomid, String owner){
+    public Room(String roomid, ClientThread owner){
         this.roomId = roomid;
         this.owner = owner;
     }
@@ -22,27 +21,25 @@ public class Room {
      */
     public Room(){
         this.roomId = "";
-        this.owner = "";
+        this.owner = null;
     }
 
     public void join(ClientThread client){
         clients.add(client);
-        String joinMsg = "";
     }
 
     public void quit(ClientThread client){
         clients.remove(client);
-        String quitMsg = "";
     }
 
     public Map<String, Object> roomContents(){
         HashMap<String, Object> roomContents = new HashMap<>();
         roomContents.put("type","roomcontents");
         roomContents.put("roomid",roomId);
-        roomContents.put("owner", owner);
+        roomContents.put("owner", owner == null ? "" : owner.getIdentity());
         ArrayList<String> identitiesList = new ArrayList<>();
-        for (ClientThread client : clients){
-            identitiesList.add(client.getIdentity().getIdentity());
+        for (ClientThread client : clients) {
+            identitiesList.add(client.getIdentity());
         }
         roomContents.put("identities",identitiesList);
         return roomContents;
@@ -56,11 +53,11 @@ public class Room {
         return roomId;
     }
 
-    public String getOwner() {
+    public ClientThread getOwner() {
         return owner;
     }
 
-    public void setOwner(String owner) {
+    public void setOwner(ClientThread owner) {
         this.owner = owner;
     }
 }

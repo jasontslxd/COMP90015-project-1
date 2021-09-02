@@ -13,7 +13,6 @@ public class OutputThread extends Thread {
     private Client client;
     private PrintWriter writer;
     private BufferedReader reader;
-    private boolean alive;
 
     public OutputThread(Socket socket, Client client) {
         try {
@@ -21,7 +20,6 @@ public class OutputThread extends Thread {
             this.client = client;
             writer = new PrintWriter(socket.getOutputStream());
             reader = new BufferedReader(new InputStreamReader(System.in));
-            alive = false;
         }
         catch (IOException e) {
             System.out.println("Cannot get output stream from socket: ".concat(e.getMessage()));
@@ -35,17 +33,17 @@ public class OutputThread extends Thread {
      */
     @Override
     public void run() {
-        alive = true;
-        while (alive) {
+        while (client.isAlive()) {
             try {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
                     System.out.println("Received null input from client, quitting");
-                    alive = false;
+                    client.setAlive(false);
+                    break;
                 }
-                else if (inputLine.equals("") && client.isTimeToPrompt()) {
+                else if (inputLine.equals("")) {
                     // Dont send anything to the server, prompt again
-                    System.out.printf("[%s] %s> ", client.getRoomid(), client.getUsername());
+                    client.promptInput();
                 }
                 else {
                     client.setSentMessage(true);
@@ -55,10 +53,12 @@ public class OutputThread extends Thread {
                 }
             } catch (IOException e) {
                 System.out.println("Error reading input, quitting: ".concat(e.getMessage()));
-                alive = false;
+                client.setAlive(false);
+                break;
             }
             catch (InvalidCommandException e) {
                 System.out.println("Invalid command: ".concat(e.getMessage()));
+                client.promptInput();
             }
         }
         close();
@@ -98,10 +98,23 @@ public class OutputThread extends Thread {
                         commandProtocol.put("identity", contents[1]);
                         break;
                     case ("join"):
+                        if (contents[1].equals("MainHall")) {
+                            client.setTimeToPrompt(false);
+                        }
+                        commandProtocol.put("type", type);
+                        commandProtocol.put("roomid", contents[1]);
+                        break;
                     case ("who"):
-                    case ("createroom"):
-                        client.setSentCreateRoom(true);
+                        commandProtocol.put("type", type);
+                        commandProtocol.put("roomid", contents[1]);
+                        break;
                     case ("delete"):
+                        client.setDeleteRoomName(contents[1]);
+                        commandProtocol.put("type", type);
+                        commandProtocol.put("roomid", contents[1]);
+                        break;
+                    case ("createroom"):
+                        client.setCreateRoomName(contents[1]);
                         commandProtocol.put("type", type);
                         commandProtocol.put("roomid", contents[1]);
                         break;
@@ -121,10 +134,11 @@ public class OutputThread extends Thread {
     }
 
     public void close(){
+        client.setAlive(false);
         try {
-            reader.close();
-            writer.close();
             socket.close();
+            writer.close();
+            // cant figure out a way to close reader gracefully :/
         } catch (IOException e) {
             System.out.println("Error closing connection: ".concat(e.getMessage()));
         }

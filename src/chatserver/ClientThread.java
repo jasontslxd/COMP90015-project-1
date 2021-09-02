@@ -13,16 +13,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ClientThread extends Thread{
-    private Socket socket;
-    private Server server; // Is this necessary?
-    private Identity identity; // not sure if needed
+    private final Socket socket;
+    private final Server server;
+    private String identity;
+    private int idNum; // Becomes -1 when the client changes name to something other than default
     private Room currentRoom;
-    String fmrRoomName;
-    String currentRoomName;
-    private Room fmrRoom;
-    //private String currentRoomName = "MainHall";
     private BufferedReader reader;
     private PrintWriter writer;
     private boolean connectionAlive = false;
@@ -30,11 +29,11 @@ public class ClientThread extends Thread{
     public ClientThread(Socket socket, Server server) throws IOException {
         this.socket = socket;
         this.server = server;
-        this.identity = new Identity(server.getSmallestInt());
-        // Replace below with JSON replacements
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        this.writer = new PrintWriter(socket.getOutputStream());
-        this.currentRoom = null;
+        idNum = server.getAndChangeSmallestInt();
+        identity = "guest" + idNum;
+        reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        writer = new PrintWriter(socket.getOutputStream());
+        currentRoom = null;
     }
 
     @Override
@@ -45,7 +44,6 @@ public class ClientThread extends Thread{
             try {
                 // Alter according to how JSON objects are read in
                 String in  = reader.readLine();
-                System.out.println(in);
                 JsonObject command = JsonHandler.stringToJson(in);
                 String cmdType = command.get("type").getAsString();
                 switch(cmdType){
@@ -53,38 +51,19 @@ public class ClientThread extends Thread{
                         handleIdentityChange(command);
                         break;
                     case "join":
-                        // Potentially have to pass in rooms rather than create object
-                        String newRoom = command.get("roomid").getAsString();
-                        fmrRoom = server.getRoom(currentRoom.getRoomId());
-                        fmrRoomName = fmrRoom.getRoomId();
-                        currentRoom = server.getRoom(newRoom);
-                        currentRoomName = currentRoom.getRoomId();
-                        try{
-                            fmrRoom.quit(this);
-                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),fmrRoom);
-                            currentRoom.join(this);
-                            server.reply(currentRoom.roomContents(),this);
-                            server.broadcastRoom(roomChange(fmrRoomName,currentRoomName),currentRoom);
-                            server.autoDeleteEmpty();
-                        } catch (Exception e) { // Create new exception class?
-                            server.reply(roomChange(fmrRoomName,currentRoomName), this);
-                        }
+                        handleJoin(command);
                         break;
                     case "who":
-                        server.reply(currentRoom.roomContents(), this);
+                        handleWho(command);
                         break;
                     case "list":
-                        server.reply(server.roomList(), this);
+                        handleList();
                         break;
                     case "createroom":
-                        String createdRoom = command.get("roomid").getAsString();
-                        server.createRoom(createdRoom, this.getIdentity().getIdentity());
-                        server.reply(server.roomList(), this);
+                        handleCreateRoom(command);
                         break;
                     case "delete":
-                        String deletedRoom = command.get("roomid").getAsString();
-                        // Add messages for those kicked out of deleted room?
-                        server.deleteRoom(deletedRoom);
+                        handleDelete(command);
                         break;
                     case "message":
                         handleMessage(command);
@@ -93,18 +72,15 @@ public class ClientThread extends Thread{
                         close();
                         break;
                 }
-            } catch (IOException e) {
+            } catch (IOException | KeyNotFoundException e) {
                 connectionAlive = false;
             }
         }
-        close();
     }
 
     public void close(){
         try {
             server.quit(this); // May not be necessary
-            server.broadcastRoom(roomChange(fmrRoomName,""),currentRoom);
-            server.updateOwner(this.identity, "");
             socket.close();
             reader.close();
             writer.close();
@@ -122,24 +98,24 @@ public class ClientThread extends Thread{
         writer.flush();
     }
 
-    public void joinRoom(String roomId) throws KeyNotFoundException {
-        this.server.joinRoom(this, roomId);
+    private void initialSetup(){
+        server.reply(newIdentity("", identity), this);
+        server.getAllClients().add(this);
+        joinRoom("MainHall");
     }
 
-    private void initialSetup() {
-        server.reply(identity.newIdentity(), this);
-        server.reply(server.roomList(), this);
-        try {
-            joinRoom("MainHall");
-        } catch (KeyNotFoundException e) {
-            System.out.println("Server error, MainHall not found");
-        }
+    private Map<String, Object> newIdentity(String former, String identity){
+        HashMap<String, Object> newIdentity = new HashMap<>();
+        newIdentity.put("type","newidentity");
+        newIdentity.put("former",former);
+        newIdentity.put("identity",identity);
+        return newIdentity;
     }
 
     public Map<String, Object> relayedMessage(JsonObject command){
         HashMap<String, Object> relayMessage = new HashMap<>();
         relayMessage.put("type",command.get("type").getAsString());
-        relayMessage.put("identity",this.getIdentity().getIdentity());
+        relayMessage.put("identity",identity);
         relayMessage.put("content",command.get("content").getAsString());
         return relayMessage;
     }
@@ -148,17 +124,13 @@ public class ClientThread extends Thread{
     public Map<String, Object> roomChange(String formerRoom, String currentRoom){
         HashMap<String, Object> roomChange = new HashMap<>();
         roomChange.put("type","roomchange");
-        roomChange.put("identity",this.getIdentity().getIdentity());
+        roomChange.put("identity",identity);
         roomChange.put("former",formerRoom);
         roomChange.put("roomid",currentRoom);
         return roomChange;
     }
 
-    public Socket getSocket() {
-        return socket;
-    }
-
-    public Identity getIdentity() {
+    public String getIdentity() {
         return identity;
     }
 
@@ -166,12 +138,96 @@ public class ClientThread extends Thread{
         server.broadcastRoom(relayedMessage(jsonMessage), currentRoom);
     }
 
+    private void handleWho(JsonObject jsonMessage) {
+        String roomId = jsonMessage.get("roomid").getAsString();
+        if (server.getRoomMap().containsKey(roomId)){
+            server.reply(server.getRoomMap().get(roomId).roomContents(), this);
+        }
+        // Not sure how to handle no room
+    }
+
+    private void handleList() {
+        server.reply(server.roomList(), this);
+    }
+
     private void handleIdentityChange(JsonObject jsonMessage) {
-        String newName = jsonMessage.get("identity").getAsString();
-        identity.identityChange(server, this,newName);
-        server.getInUse().remove((Integer) identity.getIdNum()); // See if this works despite name not being in inUse array
-        System.out.println(server.getInUse());
-        server.updateOwner(this.identity, newName);
+        String newIdentity = jsonMessage.get("identity").getAsString();
+        Map<String, Object> newIdentityMessage = new HashMap<>();
+        newIdentityMessage.put("type", "newidentity");
+        newIdentityMessage.put("former", identity);
+        boolean identityAvailable = true;
+        for (ClientThread client : server.getAllClients()) {
+            if (client.identity.equals(newIdentity)) {
+                identityAvailable = false;
+                break;
+            }
+        }
+        if (checkValidIdentity(newIdentity) && identityAvailable) {
+            newIdentityMessage.put("identity", newIdentity);
+            if (idNum > 0) {
+                server.getInUse().remove((Integer) idNum);
+                idNum = -1;
+            }
+            server.broadcastAll(newIdentityMessage);
+            identity = newIdentity;
+        }
+        else {
+            newIdentityMessage.put("identity", identity);
+            server.reply(newIdentityMessage, this);
+        }
+    }
+
+    private boolean checkValidIdentity(String identity) {
+        Pattern p = Pattern.compile("\\w{3,16}");
+        Matcher m = p.matcher(identity);
+        return m.matches() && !identity.startsWith("guest");
+    }
+
+    /**
+     * Sends a roomlist with just the newly created room if successfully created, otherwise send an empty list. If we
+     * just send the entire roomlist, the client would have no way of differentiating if the room was already there
+     * before creating or they have successfully created the room
+     * @param jsonMessage input command
+     */
+    private void handleCreateRoom(JsonObject jsonMessage) {
+        String roomToCreate = jsonMessage.get("roomid").getAsString();
+        boolean success = server.createRoom(roomToCreate, this);
+        Map<String, Object> roomListCommand = new HashMap<>();
+        ArrayList<Map<String, Object>> rooms = new ArrayList<>();
+        Map<String, Object> room = new HashMap<>();
+        if (success) {
+            room.put("roomid", roomToCreate);
+            room.put("count", 0);
+            rooms.add(room);
+        }
+        roomListCommand.put("type", "roomlist");
+        roomListCommand.put("rooms", rooms);
+        server.reply(roomListCommand, this);
+    }
+
+    private void handleJoin(JsonObject jsonMessage) {
+        String newRoomId = jsonMessage.get("roomid").getAsString();
+        joinRoom(newRoomId);
+    }
+
+    public void joinRoom(String roomId){
+        try {
+            server.joinRoom(roomId, this);
+            if (roomId.equals("MainHall")) {
+                server.reply(server.getRoomMap().get("MainHall").roomContents(), this);
+                server.reply(server.roomList(), this);
+            }
+            currentRoom = server.getRoomMap().get(roomId);
+        }
+        catch (KeyNotFoundException e) {
+            server.reply(roomChange(currentRoom.getRoomId(), currentRoom.getRoomId()), this);
+        }
+    }
+
+    private void handleDelete(JsonObject jsonMessage) throws KeyNotFoundException {
+        String deletedRoom = jsonMessage.get("roomid").getAsString();
+        server.deleteRoom(deletedRoom, this);
+        server.reply(server.roomList(), this);
     }
 
     public Room getCurrentRoom() {
