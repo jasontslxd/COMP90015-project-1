@@ -1,6 +1,5 @@
 package chatserver;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -9,21 +8,18 @@ import java.util.regex.Pattern;
 public class Identity {
 
     private String identity;
-    private String former;
     private int idNum;
 
     public Identity(int idNum){
         this.idNum = idNum;
-        this.identity = "guest"+String.valueOf(idNum);
-        this.former = "";
+        this.identity = "guest"+ idNum;
     }
 
     public Identity(){
         this.identity = "";
-        this.former = "";
     }
 
-    public void identityChange(Server server, ClientThread client, String newIdentity){
+    public boolean identityChange(Server server, ClientThread client, String newIdentity){
 
         // Check if identity meets requirement
         Pattern p = Pattern.compile("\\w{3,16}");
@@ -31,19 +27,18 @@ public class Identity {
         boolean validName = m.matches();
 
         if (validName) {
-            this.former = identity;
             this.identity = newIdentity;
-            server.broadcastAll(newIdentity(), client);
+            return true;
         } else {
-            server.reply(newIdentity(),client);
+            return false;
         }
     }
 
-    public Map<String, Object> newIdentity(){
+    public Map<String, Object> newIdentity(String former, String identity){
         HashMap<String, Object> newIdentity = new HashMap<>();
         newIdentity.put("type","newidentity");
-        newIdentity.put("former",getFormer());
-        newIdentity.put("identity",getIdentity());
+        newIdentity.put("former",former);
+        newIdentity.put("identity",identity);
         return newIdentity;
     }
 
@@ -53,14 +48,6 @@ public class Identity {
 
     public void setIdentity(String identity) {
         this.identity = identity;
-    }
-
-    public String getFormer() {
-        return former;
-    }
-
-    public void setFormer(String former) {
-        this.former = former;
     }
 
     public int getIdNum() {

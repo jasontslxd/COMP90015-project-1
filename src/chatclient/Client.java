@@ -20,10 +20,12 @@ public class Client {
     private InputThread inputThread;
     private OutputThread outputThread;
     private String username;
-    private String roomid = "MainHall"; // Assuming main hall will always be the room when client first joins
+    private String roomid;
     private boolean sentMessage = false;
     private boolean timeToPrompt = false;
-    private String newRoomName;
+    private String createRoomName;
+    private String deleteRoomName;
+    private boolean alive = false;
 
     public Client(String hostname) {
         this.hostname = hostname;
@@ -52,10 +54,31 @@ public class Client {
             outputThread = new OutputThread(socket, this);
             inputThread.start();
             outputThread.start();
+            alive = true;
         } catch (UnknownHostException e) {
             System.out.println("Server not found: ".concat(e.getMessage()));
         } catch (IOException e) {
             System.out.println("IO error: ".concat(e.getMessage()));
+        }
+    }
+
+    public void promptInput() {
+        if (isTimeToPrompt()) {
+            System.out.printf("[%s] %s> ", getRoomid(), getUsername());
+        }
+    }
+
+    public void close() {
+        alive = false;
+        try {
+            socket.close();
+            outputThread.close();
+            inputThread.close();
+            System.out.printf("Disconnected from %s\n", hostname);
+            System.exit(0);
+        }
+        catch (IOException e){
+            System.out.println("Error closing connection: ".concat(e.getMessage()));
         }
     }
 
@@ -95,11 +118,27 @@ public class Client {
         this.timeToPrompt = timeToPrompt;
     }
 
-    public String getNewRoomName() {
-        return newRoomName;
+    public String getCreateRoomName() {
+        return createRoomName;
     }
 
-    public void setNewRoomName(String newRoomName) {
-        this.newRoomName = newRoomName;
+    public void setCreateRoomName(String createRoomName) {
+        this.createRoomName = createRoomName;
+    }
+
+    public String getDeleteRoomName() {
+        return deleteRoomName;
+    }
+
+    public void setDeleteRoomName(String deleteRoomName) {
+        this.deleteRoomName = deleteRoomName;
+    }
+
+    public boolean isAlive() {
+        return alive;
+    }
+
+    public void setAlive(boolean alive) {
+        this.alive = alive;
     }
 }

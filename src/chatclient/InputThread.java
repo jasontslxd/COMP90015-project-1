@@ -14,7 +14,6 @@ public class InputThread extends Thread {
     private Client client;
     private Socket socket;
     private BufferedReader reader;
-    private boolean alive = false;
 
     public InputThread(Socket socket, Client client){
         try {
@@ -32,35 +31,36 @@ public class InputThread extends Thread {
      */
     @Override
     public void run() {
-        alive = true;
-        while (alive) {
+        while (client.isAlive()) {
             try {
                 String inputLine = reader.readLine();
                 if (inputLine == null) {
                     System.out.println("Received null input from server, quitting");
-                    alive = false;
+                    client.setAlive(false);
+                    break;
                 }
                 else {
                     handleServerReply(inputLine);
                 }
-                if (client.isTimeToPrompt()) {
-                    System.out.printf("[%s] %s> ", client.getRoomid(), client.getUsername());
-                }
+                client.promptInput();
             } catch (IOException e) {
                 System.out.println("Error reading input: ".concat(e.getMessage()));
-                alive = false;
+                client.setAlive(false);
+                break;
             }
         }
         close();
     }
 
     public void close() {
+        client.setAlive(false);
         try {
-            reader.close();
             socket.close();
+            reader.close();
         }
         catch (IOException e){
             System.out.println("Error closing connection: ".concat(e.getMessage()));
+
         }
     }
 
@@ -119,21 +119,25 @@ public class InputThread extends Thread {
     }
 
     private void handleRoomList(JsonObject jsonMessage) {
+        // Potentially need to change as not sure how we should handle a reply from #list or #createroom commands
         JsonArray roomData = jsonMessage.get("rooms").getAsJsonArray();
-        if (client.getNewRoomName() != null) {
-            boolean foundRoom = false;
-            for (JsonElement roomInstance : roomData) {
-                String roomid = roomInstance.getAsJsonObject().get("roomid").getAsString();
-                if (roomid.equals(client.getNewRoomName())) {
-                    foundRoom = true;
-                    System.out.printf("Room %s created.\n", roomid);
-                    break;
-                }
+        if (client.getCreateRoomName() != null) {
+            if (roomData.isEmpty()) {
+                System.out.printf("Room %s is invalid or already in use.\n", client.getCreateRoomName());
             }
-            if (!foundRoom) {
-                System.out.printf("Room %s is invalid or already in use.\n", client.getNewRoomName());
+            else {
+                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+                System.out.printf("Room %s created.\n", roomid);
             }
-            client.setNewRoomName(null);
+        }
+        else if (client.getDeleteRoomName() != null){
+            if (roomData.isEmpty()) {
+                System.out.printf("Room %s has been deleted.\n", client.getDeleteRoomName());
+            }
+            else {
+                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+                System.out.printf("Could not delete room %s.\n", roomid);
+            }
         }
         else {
             for (JsonElement roomInstance : roomData) {
@@ -144,7 +148,8 @@ public class InputThread extends Thread {
                 System.out.printf("%s: %d %s \n", roomid, count, plural);
             }
         }
-
+        client.setCreateRoomName(null);
+        client.setTimeToPrompt(true);
     }
 
     private void handleRoomContents(JsonObject jsonMessage) {
@@ -176,11 +181,27 @@ public class InputThread extends Thread {
         String roomid = jsonMessage.get("roomid").getAsString();
         if (former.equals("") && roomid.equals("MainHall")) {
             // New user connecting to main hall
-            System.out.printf("%s has joined %s\n", identity, roomid);
+            System.out.printf("%s moves to %s\n", identity, roomid);
+            client.setRoomid(roomid);
+        }
+        else if (roomid.equals("")) {
+            // Quitting
+            System.out.printf("%s leaves %s\n", identity, former);
+            if (identity.equals(client.getUsername())) {
+                client.close();
+            }
         }
         else {
-            System.out.printf("%s moved from %s to %s\n", identity, former, roomid);
+            if (former.equals(roomid)) {
+                System.out.println("The requested room is invalid or non existent");
+            }
+            else {
+                System.out.printf("%s moves from %s to %s\n", identity, former, roomid);
+                if (identity.equals(client.getUsername())) {
+                    client.setRoomid(roomid);
+                }
+            }
         }
-        client.setTimeToPrompt(true);
+//        client.setTimeToPrompt(true);
     }
 }

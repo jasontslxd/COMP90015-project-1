@@ -2,6 +2,7 @@ package util;
 
 import com.google.gson.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class JsonHandler {
@@ -14,7 +15,9 @@ public class JsonHandler {
     }
 
     public static String jsonToString(JsonObject jsonObject) {
-        return jsonObject.toString() + "\n";
+        String input = jsonObject.toString() + "\n";
+        byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     public static JsonElement getMessageValue(JsonObject jsonObject, String key) throws KeyNotFoundException {

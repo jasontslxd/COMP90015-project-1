@@ -5,7 +5,6 @@ import util.*;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,14 +22,10 @@ public class Server {
     @Option(name="-p", usage="Specify port number")
     private int port = DEFAULT_PORT;
 
-    private boolean alive;
-    private ArrayList<Integer> inUse = new ArrayList<>();
+    private final ArrayList<Integer> inUse = new ArrayList<>();
     private final HashMap<String, Room> roomMap = new HashMap<>();
-    private ExecutorService pool = Executors.newFixedThreadPool(8);
-
-    private ArrayList<Room> rooms = new ArrayList<Room>(); // Placeholder for Room class
-    private ArrayList<String> roomNames = new ArrayList<String>();
-    private HashSet<ClientThread> allClients = new HashSet<>(); // Placeholder for ClientThread class
+    private final HashSet<ClientThread> allClients = new HashSet<>();
+    private final ExecutorService pool = Executors.newFixedThreadPool(100);
 
     public static void main(String[] args){
         Server server = new Server();
@@ -47,7 +42,7 @@ public class Server {
      * Constructor for server
      */
     public Server() {
-        Room mainHall = new Room("MainHall", "");
+        Room mainHall = new Room("MainHall", null);
         roomMap.put(mainHall.getRoomId(), mainHall);
     }
 
@@ -59,16 +54,13 @@ public class Server {
         try {
             serverSocket = new ServerSocket(port);
             System.out.printf("Listening on port %d\n", port);
-            alive = true;
             while (true) {
                 Socket socket = serverSocket.accept();
                 ClientThread client = new ClientThread(socket, this);
-//                client.start();
                 pool.execute(client);
                 System.out.printf("Accepted new connection from %s:%d\n", socket.getLocalAddress(), socket.getPort());
             }
         } catch (IOException e) {
-            alive = false;
             e.printStackTrace();
         }
     }
@@ -76,23 +68,16 @@ public class Server {
     /**
      * Broadcast message out to clients
      * Note: To incorporate JSON marshalling
-     * @param ignore
      */
-    public void broadcastAll(Map<String, Object> map, ClientThread ignore) {
-        synchronized (allClients) { // Note: Check if synchronisation is necessary
-            for (ClientThread c: allClients) {
-                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));}
-            }
+    public synchronized void broadcastAll(Map<String, Object> map) {
+        for (ClientThread c: allClients) {
+            c.sendMessage(JsonHandler.constructJsonMessage(map));
         }
     }
 
-    public void broadcastRoom(Map<String, Object> map, Room room) {
-        synchronized (room.getClients()) { // Note: Check if synchronisation is necessary
-            for (ClientThread client: room.getClients()) {
-                client.sendMessage(utfEncoder(JsonHandler.constructJsonMessage(map)));
-            for (ClientThread c: room.getClients()) {
-                c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
-            }
+    public synchronized void broadcastRoom(Map<String, Object> map, Room room) {
+        for (ClientThread client: room.getClients()) {
+            client.sendMessage(JsonHandler.constructJsonMessage(map));
         }
     }
 
@@ -102,20 +87,23 @@ public class Server {
      * @param c
      */
     public void reply(Map<String, Object> map, ClientThread c) {
-        synchronized (allClients) { // Note: Check if synchronisation is necessary
-            c.sendMessage(UTFEncoder.utfEncoder(JsonHandler.constructJsonMessage(map)));
-        }
+        c.sendMessage(JsonHandler.constructJsonMessage(map));
     }
 
-    public void quit(ClientThread client) {
-        synchronized (allClients) {
-            allClients.remove(client);
-            // Exception in thread "pool-1-thread-2" java.lang.IndexOutOfBoundsException: Index 2 out of bounds for length 2
-            inUse.remove(client.getIdentity().getIdNum());
+    public synchronized void quit(ClientThread client) {
+        allClients.remove(client);
+        Room clientRoom = client.getCurrentRoom();
+        for (Room room : roomMap.values()) {
+            if (room.getOwner() != null && room.getOwner().equals(client)) {
+                room.setOwner(null);
+            }
         }
+        broadcastRoom(client.roomChange(clientRoom.getRoomId(),""), clientRoom);
+        clientRoom.quit(client);
+        autoDeleteEmpty();
     }
 
-    public void joinRoom(ClientThread client, String roomId) throws KeyNotFoundException {
+    public synchronized void joinRoom(String roomId, ClientThread client) throws KeyNotFoundException {
         if (roomMap.containsKey(roomId)) {
             Room newRoom = roomMap.get(roomId);
             Room oldRoom = client.getCurrentRoom();
@@ -123,7 +111,7 @@ public class Server {
             // Notify other clients in room
             HashMap<String, Object> roomChange = new HashMap<>();
             roomChange.put("type", "roomchange");
-            roomChange.put("identity", client.getIdentity().getIdentity());
+            roomChange.put("identity", client.getIdentity());
             roomChange.put("former", oldRoom == null ? "" : oldRoom.getRoomId());
             roomChange.put("roomid", roomId);
 
@@ -134,13 +122,14 @@ public class Server {
             }
             newRoom.join(client);
             broadcastRoom(roomChange, newRoom);
+            autoDeleteEmpty();
         }
         else {
             throw new KeyNotFoundException("Room does not exist: ".concat(roomId));
         }
     }
 
-    public Map<String, Object> roomList(){
+    public synchronized Map<String, Object> roomList(){
         HashMap<String, Object> roomList = new HashMap<>();
         roomList.put("type","roomlist");
         ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
@@ -154,79 +143,69 @@ public class Server {
         return roomList;
     }
 
-    public void createRoom(String roomName, String owner){
+    public synchronized boolean createRoom(String roomName, ClientThread owner){
         Pattern p = Pattern.compile("\\w{3,32}");
         Matcher m = p.matcher(roomName);
         boolean validName = m.matches();
         // Check if already in use;
-        boolean roomExists = roomNames.contains(roomName);
+        boolean roomExists = roomMap.containsKey(roomName);
         if (validName && !roomExists){
             Room newRoom = new Room(roomName, owner);
             roomMap.put(roomName, newRoom);
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized void deleteRoom(String roomName, ClientThread client) throws KeyNotFoundException {
+        if (client.equals(roomMap.get(roomName).getOwner())) {
+            ArrayList<ClientThread> toBeMoved = new ArrayList<>(roomMap.get(roomName).getClients());
+            for (ClientThread c : toBeMoved) {
+                joinRoom("MainHall", c);
+            }
+            roomMap.remove(roomName);
         }
     }
 
-    public void deleteRoom(String roomName){
-        for (ClientThread c:getRoom(roomName).getClients()){
-            getRoom("MainHall").join(c);
-        }
-        rooms.remove(getRoom(roomName));
-    }
-
-    public void autoDeleteEmpty(){
-        int len=rooms.size();
-        for(int i=0; i<len; i++) {
-            if (rooms.get(i).getClients().isEmpty()) {
-                deleteRoom(rooms.get(i).getRoomId());
+    public synchronized void autoDeleteEmpty() {
+        ArrayList<String> toBeDeleted = new ArrayList<>();
+        for (Room room : roomMap.values()) {
+            if (room.getClients().isEmpty() && room.getOwner() == null && !room.getRoomId().equals("MainHall")) {
+                toBeDeleted.add(room.getRoomId());
             }
         }
-    }
-
-    public void updateOwner(Identity client, String newName){
-        int len=rooms.size();
-        for(int i=0; i<len; i++) {
-            if (rooms.get(i).getOwner().equals(client.getFormer())) {
-                rooms.get(i).setOwner(newName);
-            }
+        for (String roomId : toBeDeleted) {
+            roomMap.remove(roomId);
         }
     }
 
-    public ArrayList<Room> getRooms() {
-        return rooms;
-    }
-
-    public Room getRoom(String roomName){ //Move to server class?
-        int len=rooms.size();
-        for(int i=0; i<len; i++) {
-            if (rooms.get(i).getRoomId().equals(roomName)) {
-                return rooms.get(i);
+    public synchronized int getAndChangeSmallestInt(){
+        int smallest = 1;
+        Set<Integer> inUseSet = new HashSet<>();
+        for (int id : inUse) {
+            if (id > 0) {
+                inUseSet.add(id);
             }
         }
-        return null;
-    }
-
-    public int getSmallestInt(){
-        int smallest = 0;
-        if (inUse.contains(null)){
-            for (int i =0; i<inUse.size(); i++){
-                if (inUse.get(i)==null){
-                    smallest = i+1;
-                    inUse.set(i,smallest);
-                    break;
-                }
+        for (int i = 1; i <= inUse.size() + 1; i++){
+            if (!inUseSet.contains(i)) {
+                smallest = i;
+                break;
             }
-        } else {
-            inUse.add(inUse.size()+1);
-            smallest = inUse.size();
         }
+        inUse.add(smallest);
         return smallest;
     }
 
-    public ArrayList<Integer> getInUse() {
+    public synchronized ArrayList<Integer> getInUse() {
         return inUse;
     }
 
-    public void setInUse(ArrayList<Integer> inUse) {
-        this.inUse = inUse;
+    public synchronized HashMap<String, Room> getRoomMap() {
+        return roomMap;
+    }
+
+    public synchronized HashSet<ClientThread> getAllClients() {
+        return allClients;
     }
 }
