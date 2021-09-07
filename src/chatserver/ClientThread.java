@@ -69,21 +69,27 @@ public class ClientThread extends Thread{
                         handleMessage(command);
                         break;
                     case "quit":
-                        close();
+                        connectionAlive = false;
                         break;
                 }
             } catch (IOException | KeyNotFoundException e) {
                 connectionAlive = false;
             }
         }
+        close();
     }
 
     public void close(){
         try {
             server.quit(this); // May not be necessary
+            if (idNum > 0){
+                server.getInUse().remove((Integer) idNum);
+            }
+            server.getInUse().remove((Integer) idNum);
             socket.close();
             reader.close();
             writer.close();
+            System.out.printf("Disconnected from %s:%d\n", socket.getLocalAddress(), socket.getPort());
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
@@ -213,11 +219,11 @@ public class ClientThread extends Thread{
     public void joinRoom(String roomId){
         try {
             server.joinRoom(roomId, this);
-            if (roomId.equals("MainHall")) {
-                server.reply(server.getRoomMap().get("MainHall").roomContents(), this);
-                server.reply(server.roomList(), this);
-            }
-            currentRoom = server.getRoomMap().get(roomId);
+//            if (roomId.equals("MainHall")) {
+//                server.reply(server.getRoomMap().get("MainHall").roomContents(), this);
+//                server.reply(server.roomList(), this);
+//            }
+//            currentRoom = server.getRoomMap().get(roomId);
         }
         catch (KeyNotFoundException e) {
             server.reply(roomChange(currentRoom.getRoomId(), currentRoom.getRoomId()), this);

@@ -123,6 +123,10 @@ public class Server {
             newRoom.join(client);
             broadcastRoom(roomChange, newRoom);
             autoDeleteEmpty();
+            if (roomId.equals("MainHall")&&(oldRoom==null||!oldRoom.getRoomId().equals("MainHall"))) {
+                reply(roomMap.get("MainHall").roomContents(), client);
+                reply(roomList(), client);
+            }
         }
         else {
             throw new KeyNotFoundException("Room does not exist: ".concat(roomId));

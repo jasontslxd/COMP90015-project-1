@@ -129,15 +129,20 @@ public class InputThread extends Thread {
                 String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
                 System.out.printf("Room %s created.\n", roomid);
             }
+            client.setCreateRoomName(null);
         }
         else if (client.getDeleteRoomName() != null){
-            if (roomData.isEmpty()) {
+            // if returning list does not have the deleted room
+//            if (roomData.isEmpty()) {
+            if (!roomData.toString().contains(client.getDeleteRoomName())) {
                 System.out.printf("Room %s has been deleted.\n", client.getDeleteRoomName());
             }
             else {
-                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+//                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+                String roomid = client.getDeleteRoomName();
                 System.out.printf("Could not delete room %s.\n", roomid);
             }
+            client.setDeleteRoomName(null);
         }
         else {
             for (JsonElement roomInstance : roomData) {
@@ -148,7 +153,7 @@ public class InputThread extends Thread {
                 System.out.printf("%s: %d %s \n", roomid, count, plural);
             }
         }
-        client.setCreateRoomName(null);
+//        client.setCreateRoomName(null);
         client.setTimeToPrompt(true);
     }
 
@@ -194,6 +199,7 @@ public class InputThread extends Thread {
         else {
             if (former.equals(roomid)) {
                 System.out.println("The requested room is invalid or non existent");
+                client.setTimeToPrompt(true);
             }
             else {
                 System.out.printf("%s moves from %s to %s\n", identity, former, roomid);
