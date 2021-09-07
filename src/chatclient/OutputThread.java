@@ -19,7 +19,7 @@ public class OutputThread extends Thread {
             this.socket = socket;
             this.client = client;
             writer = new PrintWriter(socket.getOutputStream());
-            reader = new BufferedReader(new InputStreamReader(System.in));
+            reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         }
         catch (IOException e) {
             System.out.println("Cannot get output stream from socket: ".concat(e.getMessage()));
