@@ -147,6 +147,22 @@ public class Server {
         return roomList;
     }
 
+    public synchronized Map<String, Object> roomList(String roomName){
+        HashMap<String, Object> roomList = new HashMap<>();
+        roomList.put("type","roomlist");
+        ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
+        for (Room r: roomMap.values()){
+            if (!r.getRoomId().equals(roomName)) {
+                HashMap<String, Object> roomData = new HashMap<>();
+                roomData.put("roomid", r.getRoomId());
+                roomData.put("count", r.getClients().size());
+                roomDict.add(roomData);
+            }
+        }
+        roomList.put("rooms", roomDict);
+        return roomList;
+    }
+
     public synchronized boolean createRoom(String roomName, ClientThread owner){
         Pattern p = Pattern.compile("\\w{3,32}");
         Matcher m = p.matcher(roomName);

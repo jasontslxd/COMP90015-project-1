@@ -198,17 +198,25 @@ public class ClientThread extends Thread{
     private void handleCreateRoom(JsonObject jsonMessage) {
         String roomToCreate = jsonMessage.get("roomid").getAsString();
         boolean success = server.createRoom(roomToCreate, this);
+//        Map<String, Object> roomListCommand = new HashMap<>();
+//        ArrayList<Map<String, Object>> rooms = new ArrayList<>();
+//        Map<String, Object> room = new HashMap<>();
+//        if (success) {
+//            room.put("roomid", roomToCreate);
+//            room.put("count", 0);
+//            rooms.add(room);
+//        }
+//        roomListCommand.put("type", "roomlist");
+//        roomListCommand.put("rooms", rooms);
+//        server.reply(roomListCommand, this);
         Map<String, Object> roomListCommand = new HashMap<>();
-        ArrayList<Map<String, Object>> rooms = new ArrayList<>();
-        Map<String, Object> room = new HashMap<>();
-        if (success) {
-            room.put("roomid", roomToCreate);
-            room.put("count", 0);
-            rooms.add(room);
+        if (!success && server.getRoomMap().containsKey(roomToCreate)) {
+            roomListCommand = server.roomList(roomToCreate);
+        }else {
+            roomListCommand = server.roomList();
         }
-        roomListCommand.put("type", "roomlist");
-        roomListCommand.put("rooms", rooms);
         server.reply(roomListCommand, this);
+//        System.out.println(roomListCommand);
     }
 
     private void handleJoin(JsonObject jsonMessage) {

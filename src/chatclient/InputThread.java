@@ -122,11 +122,13 @@ public class InputThread extends Thread {
         // Potentially need to change as not sure how we should handle a reply from #list or #createroom commands
         JsonArray roomData = jsonMessage.get("rooms").getAsJsonArray();
         if (client.getCreateRoomName() != null) {
-            if (roomData.isEmpty()) {
+//            if (roomData.isEmpty()) {
+            if (!roomData.toString().contains(client.getCreateRoomName())) {
                 System.out.printf("Room %s is invalid or already in use.\n", client.getCreateRoomName());
             }
             else {
-                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+//                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
+                String roomid = client.getCreateRoomName();
                 System.out.printf("Room %s created.\n", roomid);
             }
             client.setCreateRoomName(null);
