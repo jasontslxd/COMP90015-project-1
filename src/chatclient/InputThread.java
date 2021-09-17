@@ -34,7 +34,6 @@ public class InputThread extends Thread {
         while (client.isAlive()) {
             try {
                 String inputLine = reader.readLine();
-                System.out.println(inputLine);
                 if (inputLine == null) {
                     System.out.println("Received null input from server, quitting");
                     client.setAlive(false);

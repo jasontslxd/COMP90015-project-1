@@ -1,9 +1,9 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="client">
-    <output-path>$PROJECT_DIR$/out/artifacts/client</output-path>
-    <root id="archive" name="COMP90015-project-1.jar">
+  <artifact type="jar" name="chatserver">
+    <output-path>$PROJECT_DIR$/out/artifacts/chatserver</output-path>
+    <root id="archive" name="chatserver.jar">
       <element id="directory" name="META-INF">
-        <element id="file-copy" path="$PROJECT_DIR$/src/chatclient/META-INF/MANIFEST.MF" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/manifests/chatserver/META-INF/MANIFEST.MF" />
       </element>
       <element id="module-output" name="COMP90015-project-1" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/args4j-2.33.jar" path-in-jar="/" />
