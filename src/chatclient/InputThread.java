@@ -34,6 +34,7 @@ public class InputThread extends Thread {
         while (client.isAlive()) {
             try {
                 String inputLine = reader.readLine();
+                System.out.println(inputLine);
                 if (inputLine == null) {
                     System.out.println("Received null input from server, quitting");
                     client.setAlive(false);
@@ -122,8 +123,14 @@ public class InputThread extends Thread {
         // Potentially need to change as not sure how we should handle a reply from #list or #createroom commands
         JsonArray roomData = jsonMessage.get("rooms").getAsJsonArray();
         if (client.getCreateRoomName() != null) {
+            boolean found = false;
+            for (JsonElement roomInstance : roomData) {
+                if (client.getCreateRoomName().equals(roomInstance.getAsJsonObject().get("roomid").getAsString())) {
+                    found = true;
+                }
+            }
 //            if (roomData.isEmpty()) {
-            if (!roomData.toString().contains(client.getCreateRoomName())) {
+            if (!found) {
                 System.out.printf("Room %s is invalid or already in use.\n", client.getCreateRoomName());
             }
             else {

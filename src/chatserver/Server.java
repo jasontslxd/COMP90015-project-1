@@ -178,7 +178,7 @@ public class Server {
     }
 
     public synchronized void deleteRoom(String roomName, ClientThread client) throws KeyNotFoundException {
-        if (client.equals(roomMap.get(roomName).getOwner())) {
+        if (roomMap.containsKey(roomName) && client.equals(roomMap.get(roomName).getOwner())) {
             ArrayList<ClientThread> toBeMoved = new ArrayList<>(roomMap.get(roomName).getClients());
             for (ClientThread c : toBeMoved) {
                 joinRoom("MainHall", c);
