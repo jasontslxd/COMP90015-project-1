@@ -142,7 +142,13 @@ public class InputThread extends Thread {
         else if (client.getDeleteRoomName() != null){
             // if returning list does not have the deleted room
 //            if (roomData.isEmpty()) {
-            if (!roomData.toString().contains(client.getDeleteRoomName())) {
+            boolean found = false;
+            for (JsonElement roomInstance : roomData) {
+                if (client.getDeleteRoomName().equals(roomInstance.getAsJsonObject().get("roomid").getAsString())) {
+                    found = true;
+                }
+            }
+            if (!found) {
                 System.out.printf("Room %s has been deleted.\n", client.getDeleteRoomName());
             }
             else {

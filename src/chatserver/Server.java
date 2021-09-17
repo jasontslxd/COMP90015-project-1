@@ -115,17 +115,22 @@ public class Server {
             roomChange.put("former", oldRoom == null ? "" : oldRoom.getRoomId());
             roomChange.put("roomid", roomId);
 
-            client.setCurrentRoom(newRoom);
-            if (oldRoom != null) {
-                oldRoom.quit(client);
-                broadcastRoom(roomChange, oldRoom);
+            if (oldRoom != newRoom) {
+                client.setCurrentRoom(newRoom);
+                if (oldRoom != null) {
+                    oldRoom.quit(client);
+                    broadcastRoom(roomChange, oldRoom);
+                }
+                newRoom.join(client);
+                broadcastRoom(roomChange, newRoom);
+                autoDeleteEmpty();
+                if (roomId.equals("MainHall")&&(oldRoom==null||!oldRoom.getRoomId().equals("MainHall"))) {
+                    reply(roomMap.get("MainHall").roomContents(), client);
+                    reply(roomList(), client);
+                }
             }
-            newRoom.join(client);
-            broadcastRoom(roomChange, newRoom);
-            autoDeleteEmpty();
-            if (roomId.equals("MainHall")&&(oldRoom==null||!oldRoom.getRoomId().equals("MainHall"))) {
-                reply(roomMap.get("MainHall").roomContents(), client);
-                reply(roomList(), client);
+            else {
+                reply(roomChange, client);
             }
         }
         else {
