@@ -152,7 +152,7 @@ public class Server {
         return roomList;
     }
 
-    public synchronized Map<String, Object> roomList(String roomName){
+    public synchronized Map<String, Object> roomListCreate(String roomName){
         HashMap<String, Object> roomList = new HashMap<>();
         roomList.put("type","roomlist");
         ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
@@ -164,6 +164,24 @@ public class Server {
                 roomDict.add(roomData);
             }
         }
+        roomList.put("rooms", roomDict);
+        return roomList;
+    }
+
+    public synchronized Map<String, Object> roomListDelete(String roomName){
+        HashMap<String, Object> roomList = new HashMap<>();
+        roomList.put("type","roomlist");
+        ArrayList<HashMap<String, Object>> roomDict = new ArrayList<>();
+        for (Room r: roomMap.values()){
+            HashMap<String, Object> roomData = new HashMap<>();
+            roomData.put("roomid" ,r.getRoomId());
+            roomData.put("count",r.getClients().size());
+            roomDict.add(roomData);
+        }
+        HashMap<String, Object> roomData = new HashMap<>();
+        roomData.put("roomid" ,roomName);
+        roomData.put("count",0);
+        roomDict.add(roomData);
         roomList.put("rooms", roomDict);
         return roomList;
     }
@@ -182,14 +200,16 @@ public class Server {
         return false;
     }
 
-    public synchronized void deleteRoom(String roomName, ClientThread client) throws KeyNotFoundException {
+    public synchronized boolean deleteRoom(String roomName, ClientThread client) throws KeyNotFoundException {
         if (roomMap.containsKey(roomName) && client.equals(roomMap.get(roomName).getOwner())) {
             ArrayList<ClientThread> toBeMoved = new ArrayList<>(roomMap.get(roomName).getClients());
             for (ClientThread c : toBeMoved) {
                 joinRoom("MainHall", c);
             }
             roomMap.remove(roomName);
+            return true;
         }
+        return false;
     }
 
     public synchronized void autoDeleteEmpty() {

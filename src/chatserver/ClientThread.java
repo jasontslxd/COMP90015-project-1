@@ -211,7 +211,7 @@ public class ClientThread extends Thread{
 //        server.reply(roomListCommand, this);
         Map<String, Object> roomListCommand = new HashMap<>();
         if (!success && server.getRoomMap().containsKey(roomToCreate)) {
-            roomListCommand = server.roomList(roomToCreate);
+            roomListCommand = server.roomListCreate(roomToCreate);
         }else {
             roomListCommand = server.roomList();
         }
@@ -240,8 +240,15 @@ public class ClientThread extends Thread{
 
     private void handleDelete(JsonObject jsonMessage) throws KeyNotFoundException {
         String deletedRoom = jsonMessage.get("roomid").getAsString();
-        server.deleteRoom(deletedRoom, this);
-        server.reply(server.roomList(), this);
+        boolean success = server.deleteRoom(deletedRoom, this);
+//        server.reply(server.roomList(), this);
+        Map<String, Object> roomListCommand = new HashMap<>();
+        if (!success && server.getRoomMap().containsKey(deletedRoom)) {
+            roomListCommand = server.roomListDelete(deletedRoom);
+        }else {
+            roomListCommand = server.roomList();
+        }
+        server.reply(roomListCommand, this);
     }
 
     public Room getCurrentRoom() {
