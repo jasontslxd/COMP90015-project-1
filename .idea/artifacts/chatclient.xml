@@ -1,7 +1,7 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="chatclient">
     <output-path>$PROJECT_DIR$/out/artifacts/chatclient</output-path>
-    <root id="archive" name="COMP90015-project-1.jar">
+    <root id="archive" name="chatclient.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/src/manifests/chatclient/META-INF/MANIFEST.MF" />
       </element>

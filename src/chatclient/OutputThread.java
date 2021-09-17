@@ -37,6 +37,9 @@ public class OutputThread extends Thread {
             long startTime = System.currentTimeMillis();
             try {
                 if ((System.currentTimeMillis() - startTime) < 1000 && !reader.ready()) {
+                    // Wait for 1s until there is actually input to be read before calling readline.
+                    // For some reason this causes the user input to not be shown on windows cmd terminal, but works
+                    // fine for git bash. This is left in to gracefully close the reader stream.
                 }
                 else{
                     String inputLine = reader.readLine();

@@ -119,29 +119,26 @@ public class InputThread extends Thread {
     }
 
     private void handleRoomList(JsonObject jsonMessage) {
-        // Potentially need to change as not sure how we should handle a reply from #list or #createroom commands
         JsonArray roomData = jsonMessage.get("rooms").getAsJsonArray();
         if (client.getCreateRoomName() != null) {
+            // Client sent a create room command
             boolean found = false;
             for (JsonElement roomInstance : roomData) {
                 if (client.getCreateRoomName().equals(roomInstance.getAsJsonObject().get("roomid").getAsString())) {
                     found = true;
                 }
             }
-//            if (roomData.isEmpty()) {
             if (!found) {
                 System.out.printf("Room %s is invalid or already in use.\n", client.getCreateRoomName());
             }
             else {
-//                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
                 String roomid = client.getCreateRoomName();
                 System.out.printf("Room %s created.\n", roomid);
             }
             client.setCreateRoomName(null);
         }
         else if (client.getDeleteRoomName() != null){
-            // if returning list does not have the deleted room
-//            if (roomData.isEmpty()) {
+            // Client sent a delete room command
             boolean found = false;
             for (JsonElement roomInstance : roomData) {
                 if (client.getDeleteRoomName().equals(roomInstance.getAsJsonObject().get("roomid").getAsString())) {
@@ -152,13 +149,13 @@ public class InputThread extends Thread {
                 System.out.printf("Room %s has been deleted.\n", client.getDeleteRoomName());
             }
             else {
-//                String roomid = roomData.get(0).getAsJsonObject().get("roomid").getAsString();
                 String roomid = client.getDeleteRoomName();
                 System.out.printf("Could not delete room %s.\n", roomid);
             }
             client.setDeleteRoomName(null);
         }
         else {
+            // Normal room list
             for (JsonElement roomInstance : roomData) {
                 JsonObject room = roomInstance.getAsJsonObject();
                 String roomid = room.get("roomid").getAsString();
@@ -167,7 +164,6 @@ public class InputThread extends Thread {
                 System.out.printf("%s: %d %s \n", roomid, count, plural);
             }
         }
-//        client.setCreateRoomName(null);
         client.setTimeToPrompt(true);
     }
 
@@ -222,6 +218,5 @@ public class InputThread extends Thread {
                 }
             }
         }
-//        client.setTimeToPrompt(true);
     }
 }

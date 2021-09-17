@@ -10,7 +10,6 @@ import com.google.gson.JsonObject;
 import util.*;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -81,7 +80,7 @@ public class ClientThread extends Thread{
 
     public void close(){
         try {
-            server.quit(this); // May not be necessary
+            server.quit(this);
             if (idNum > 0){
                 server.getInUse().remove((Integer) idNum);
             }
@@ -149,7 +148,6 @@ public class ClientThread extends Thread{
         if (server.getRoomMap().containsKey(roomId)){
             server.reply(server.getRoomMap().get(roomId).roomContents(), this);
         }
-        // Not sure how to handle no room
     }
 
     private void handleList() {
@@ -198,25 +196,14 @@ public class ClientThread extends Thread{
     private void handleCreateRoom(JsonObject jsonMessage) {
         String roomToCreate = jsonMessage.get("roomid").getAsString();
         boolean success = server.createRoom(roomToCreate, this);
-//        Map<String, Object> roomListCommand = new HashMap<>();
-//        ArrayList<Map<String, Object>> rooms = new ArrayList<>();
-//        Map<String, Object> room = new HashMap<>();
-//        if (success) {
-//            room.put("roomid", roomToCreate);
-//            room.put("count", 0);
-//            rooms.add(room);
-//        }
-//        roomListCommand.put("type", "roomlist");
-//        roomListCommand.put("rooms", rooms);
-//        server.reply(roomListCommand, this);
-        Map<String, Object> roomListCommand = new HashMap<>();
+
+        Map<String, Object> roomListCommand;
         if (!success && server.getRoomMap().containsKey(roomToCreate)) {
             roomListCommand = server.roomListCreate(roomToCreate);
         }else {
             roomListCommand = server.roomList();
         }
         server.reply(roomListCommand, this);
-//        System.out.println(roomListCommand);
     }
 
     private void handleJoin(JsonObject jsonMessage) {
@@ -227,11 +214,6 @@ public class ClientThread extends Thread{
     public void joinRoom(String roomId){
         try {
             server.joinRoom(roomId, this);
-//            if (roomId.equals("MainHall")) {
-//                server.reply(server.getRoomMap().get("MainHall").roomContents(), this);
-//                server.reply(server.roomList(), this);
-//            }
-//            currentRoom = server.getRoomMap().get(roomId);
         }
         catch (KeyNotFoundException e) {
             server.reply(roomChange(currentRoom.getRoomId(), currentRoom.getRoomId()), this);

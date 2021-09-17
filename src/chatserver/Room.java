@@ -6,22 +6,13 @@ import java.util.HashSet;
 import java.util.Map;
 
 public class Room {
-    private ArrayList<ClientThread> clients = new ArrayList<>(); // Either lists of clients or identities idk
+    private ArrayList<ClientThread> clients = new ArrayList<>();
     private String roomId;
     private ClientThread owner;
 
     public Room(String roomid, ClientThread owner){
         this.roomId = roomid;
         this.owner = owner;
-    }
-
-    /**
-     * Default constructor for room
-     * Note: Make it equal to MainHall?
-     */
-    public Room(){
-        this.roomId = "";
-        this.owner = null;
     }
 
     public void join(ClientThread client){
