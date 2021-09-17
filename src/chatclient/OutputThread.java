@@ -34,22 +34,27 @@ public class OutputThread extends Thread {
     @Override
     public void run() {
         while (client.isAlive()) {
+            long startTime = System.currentTimeMillis();
             try {
-                String inputLine = reader.readLine();
-                if (inputLine == null) {
-                    System.out.println("Received null input from client, quitting");
-                    client.setAlive(false);
-                    break;
+                if ((System.currentTimeMillis() - startTime) < 1000 && !reader.ready()) {
                 }
-                else if (inputLine.equals("")) {
-                    // Dont send anything to the server, prompt again
-                    client.promptInput();
-                }
-                else {
-                    client.setSentMessage(true);
-                    String message = convertToProtocol(inputLine);
-                    writer.print(message);
-                    writer.flush();
+                else{
+                    String inputLine = reader.readLine();
+                    if (inputLine == null) {
+                        System.out.println("Received null input from client, quitting");
+                        client.setAlive(false);
+                        break;
+                    }
+                    else if (inputLine.equals("")) {
+                        // Dont send anything to the server, prompt again
+                        client.promptInput();
+                    }
+                    else {
+                        client.setSentMessage(true);
+                        String message = convertToProtocol(inputLine);
+                        writer.print(message);
+                        writer.flush();
+                    }
                 }
             } catch (IOException e) {
                 System.out.println("Error reading input, quitting: ".concat(e.getMessage()));
@@ -138,7 +143,7 @@ public class OutputThread extends Thread {
         try {
             socket.close();
             writer.close();
-            // cant figure out a way to close reader gracefully :/
+            reader.close();
         } catch (IOException e) {
             System.out.println("Error closing connection: ".concat(e.getMessage()));
         }
